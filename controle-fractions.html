@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Contrôle blanc – Fractions (3e)</title>
+<style>
+:root{--bg:#eef2f7;--card:#fff;--ink:#14213d;--mut:#5b6784;--acc:#0f766e;--accl:#d9f2ef;--bad:#b42318;--badl:#fde8e6;--ok:#157f3b;--line:#cfd7e6}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:760px;margin:0 auto;padding:16px}
+h1{font-size:1.6rem;margin:.2em 0}h2{font-size:1.15rem;margin:0 0 .6em}
+.card{background:var(--card);border:2px solid var(--line);border-radius:14px;padding:18px;margin:14px 0}
+.hide{display:none}
+button{font:inherit;font-weight:600;background:var(--acc);color:#fff;border:0;border-radius:10px;padding:12px 22px;cursor:pointer}
+button.sec{background:#fff;color:var(--ink);border:2px solid var(--line)}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid #f59e0b;outline-offset:2px}
+input,textarea{font:inherit;border:2px solid var(--line);border-radius:8px;padding:8px 10px;width:100%}
+#bar{position:sticky;top:0;z-index:5;background:var(--ink);color:#fff;display:flex;justify-content:space-between;align-items:center;padding:10px 16px}
+#timer{font-size:1.5rem;font-variant-numeric:tabular-nums;font-weight:700}
+#timer.low{color:#fdba74;animation:p 1s infinite}@keyframes p{50%{opacity:.5}}
+@media(prefers-reduced-motion:reduce){#timer.low{animation:none}}
+.q{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line);flex-wrap:wrap}
+.q:first-of-type{border-top:0}.q .e{flex:1 1 260px;font-size:1.2rem}.q input{width:150px}
+.q .pts{color:var(--mut);font-size:.85rem}
+.f{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 3px;line-height:1.15}
+.f i{font-style:normal;padding:0 4px}.f i:first-child{border-bottom:2px solid currentColor}
+.sub{color:var(--mut);font-size:.95rem}
+.big{font-size:3rem;font-weight:800;line-height:1}
+.ok{color:var(--ok)}.ko{color:var(--bad)}
+.row-ok{background:#ecfdf3}.row-ko{background:var(--badl)}.row-mid{background:#fff7e0}
+.tip{background:var(--accl);border-radius:10px;padding:10px 14px;margin:8px 0}
+.warn{background:var(--badl);color:var(--bad);border-radius:10px;padding:8px 12px;margin:8px 0;font-size:.9rem}
+</style></head><body>
+<div id="bar" class="hide"><span>Contrôle – Fractions</span><span id="timer">20:00</span></div>
+<main>
+<section id="home" class="card">
+  <h1>Contrôle blanc : les fractions</h1>
+  <p class="sub">Mathématiques 3e · 20 points · 20 minutes · sans calculatrice</p>
+  <ul>
+    <li>Prépare un <b>brouillon papier</b> et un stylo : calcule dessus, puis écris ici uniquement le résultat.</li>
+    <li>Écris les fractions sous la forme <b>3/4</b> (ou <b>-1/4</b>) et <b>simplifie-les au maximum</b>.</li>
+    <li>Le chronomètre démarre au clic. Quand il atteint 0, le contrôle est envoyé automatiquement.</li>
+    <li>Quitter la page ou la recharger ne remet pas le temps à zéro.</li>
+  </ul>
+  <label>Prénom <input id="name" value="Aya" autocomplete="off"></label>
+  <p id="cfgwarn" class="warn hide">Google Sheet non configuré : les résultats restent sur cet appareil (voir SHEET_URL dans le fichier).</p>
+  <p><button id="go">Commencer le contrôle</button></p>
+</section>
+<section id="exam" class="hide">
+  <div id="qs"></div>
+  <p><button id="done">Terminer et envoyer</button></p>
+</section>
+<section id="res" class="hide"></section>
+</main>
+<script>
+// ====== CONFIG ======
+const SHEET_URL = "https://script.google.com/macros/s/AKfycbw4J2PjG17zVcKzCGcM6G0ybBiGWlLGbT5-AguOW_YKhwOJpoCMTtMxYG7n-BJvU2zW/exec";            // URL du Web App Apps Script (se termine par /exec)
+const TOKEN = "14121983";      // même valeur que dans le script Google
+const DURATION = 20*60;          // secondes
+const KEY = "ctrl-fractions-v1";
+// ====== CONTENU ======
+const TIPS={
+ simpl:"Simplification : cherche le plus grand nombre qui divise le haut ET le bas (ex. 18 et 24 → 6). Vérifie que ta fraction finale ne peut plus être simplifiée.",
+ addsub:"Addition/soustraction : mets d'abord les fractions au même dénominateur, puis calcule seulement sur les numérateurs. Attention aux signes (−1/3 + 5/6 : pense en sixièmes).",
+ mult:"Multiplication : numérateur × numérateur, dénominateur × dénominateur. Règle des signes (+ × − = −), puis simplifie (tu peux même simplifier avant de multiplier).",
+ prob:"Problème : traduis la phrase en calcul (1/4 + 2/8). Pour ce qui reste, calcule 1 − (ce qui est mangé), avec 1 = 2/2, 4/4, 8/8…",
+ erreur:"Piège classique : on n'additionne jamais les dénominateurs. 1/2 + 1/3 → on passe en sixièmes : 3/6 + 2/6 = 5/6."
+};
+const SECS=[
+ {id:"simpl",t:"A. Simplification",qs:[["18/24","3/4",2],["28/42","2/3",2]]},
+ {id:"addsub",t:"B. Addition et soustraction",qs:[["2/5 + 1/10","1/2",2],["7/8 − 1/4","5/8",2],["−1/3 + 5/6","1/2",2]]},
+ {id:"mult",t:"C. Multiplication",qs:[["3/4 × 2/9","1/6",2],["−5/6 × 3/10","-1/4",2]]},
+ {id:"prob",t:"D. Petit problème",intro:"Aya mange 1/4 d'une pizza à midi et 2/8 le soir.",qs:[["Quelle fraction a-t-elle mangée au total ?","1/2",1.5],["Quelle fraction reste-t-il ?","1/2",1.5]]},
+ {id:"erreur",t:"E. Attention aux erreurs",intro:"Un élève écrit : 1/2 + 1/3 = 2/5",qs:[["Explique pourquoi c'est faux (en une ou deux phrases).","TXT",1],["Donne le bon résultat.","5/6",2]]}
+];
+const Q=[];SECS.forEach(s=>s.qs.forEach((q,i)=>Q.push({sec:s.id,id:s.id[0].toUpperCase()+(i+1),q:q[0],a:q[1],p:q[2]})));
+// ====== OUTILS ======
+const $=id=>document.getElementById(id);
+const fr=s=>s.replace(/(−?)(\d+)\/(\d+)/g,(m,m1,a,b)=>(m1?"−":"")+`<span class="f"><i>${a}</i><i>${b}</i></span>`);
+const gcd=(a,b)=>b?gcd(b,a%b):Math.abs(a);
+function parse(s){s=(s||"").replace(/[−–]/g,"-").replace(/\s/g,"");let m=s.match(/^(-?\d+)\/(-?\d+)$/);
+ if(m&&+m[2]!==0)return[+m[1],+m[2]];m=s.match(/^(-?\d+)$/);return m?[+m[1],1]:null}
+function grade(q,v){
+ if(q.a==="TXT"){const t=(v||"").toLowerCase();return /d[ée]nominateur|m[êe]me|additionn/.test(t)?q.p:0}
+ const x=parse(v),y=parse(q.a);if(!x)return 0;
+ if(x[0]*y[1]!==x[1]*y[0])return 0;
+ const red=gcd(x[0],x[1])===1&&x[1]>0;return red?q.p:q.p/2}
+const fmt=n=>(Math.round(n*10)/10).toString().replace(".",",");
+function load(){try{return JSON.parse(localStorage.getItem(KEY))}catch(e){return null}}
+function save(s){try{localStorage.setItem(KEY,JSON.stringify(s))}catch(e){}}
+let S=null,tick=null,blurs=0;
+// ====== ENVOI ======
+async function send(p){p.token=TOKEN;
+ if(!SHEET_URL)return false;
+ try{await fetch(SHEET_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain"},body:JSON.stringify(p)});return true}
+ catch(e){const q=JSON.parse(localStorage.getItem(KEY+"-q")||"[]");q.push(p);localStorage.setItem(KEY+"-q",JSON.stringify(q));return false}}
+async function flush(){const q=JSON.parse(localStorage.getItem(KEY+"-q")||"[]");if(!q.length||!SHEET_URL)return;
+ localStorage.removeItem(KEY+"-q");for(const p of q)await send(p)}
+// ====== EXAMEN ======
+function render(){
+ let h="";SECS.forEach(s=>{h+=`<div class="card"><h2>${s.t}</h2>${s.intro?`<p>${fr(s.intro)}</p>`:""}`;
+  Q.filter(q=>q.sec===s.id).forEach(q=>{const txt=q.a==="TXT";
+   h+=`<div class="q"><div class="e">${q.id}. ${fr(q.q)}</div>${txt?`<textarea rows="2" data-q="${q.id}" aria-label="${q.id}"></textarea>`:`<input data-q="${q.id}" inputmode="text" autocomplete="off" placeholder="ex : 3/4" aria-label="${q.id}">`}<span class="pts">${fmt(q.p)} pt</span></div>`});
+  h+="</div>"});
+ $("qs").innerHTML=h;
+ document.querySelectorAll("[data-q]").forEach(el=>{el.value=S.ans[el.dataset.q]||"";
+  el.addEventListener("input",()=>{S.ans[el.dataset.q]=el.value;save(S)})})}
+function startTimer(){$("bar").classList.remove("hide");
+ const upd=()=>{const left=Math.max(0,DURATION-Math.floor((Date.now()-S.start)/1000));
+  const m=String(Math.floor(left/60)).padStart(2,"0"),s=String(left%60).padStart(2,"0");
+  $("timer").textContent=m+":"+s;$("timer").classList.toggle("low",left<=180);
+  if(left<=0){clearInterval(tick);finish(true)}};
+ upd();tick=setInterval(upd,500)}
+function begin(){
+ const name=$("name").value.trim()||"Aya";
+ S={name,start:Date.now(),ans:{},blurs:0,done:false};save(S);
+ send({type:"start",name,at:new Date(S.start).toISOString()});
+ show("exam");render();startTimer()}
+async function finish(auto){
+ if(S.done)return;S.done=true;clearInterval(tick);
+ const dur=Math.min(DURATION,Math.round((Date.now()-S.start)/1000));
+ const det=Q.map(q=>({id:q.id,sec:q.sec,rep:S.ans[q.id]||"",att:q.a,max:q.p,pts:grade(q,S.ans[q.id])}));
+ const total=det.reduce((a,d)=>a+d.pts,0);
+ S.result={det,total,dur,auto:!!auto};save(S);
+ const sent=await send({type:"result",name:S.name,at:new Date().toISOString(),total,dur,auto:!!auto,blurs:S.blurs,det});
+ showResult(sent)}
+function band(n){
+ if(n>=16)return["Excellent","Tu maîtrises très bien les fractions. Pour vendredi : relis tes erreurs éventuelles et garde ce rythme."];
+ if(n>=12)return["Bon travail","Tu es au-dessus de la moyenne. Il reste quelques points fragiles : travaille-les (voir plus bas) et tu seras très solide."];
+ if(n>=8)return["Presque là","Tu es proche de la moyenne. Refais les exercices ratés sur ton brouillon, étape par étape, avant vendredi."];
+ return["À reprendre","Pas de panique : il reste du temps. Reprends les règles de base (simplifier, même dénominateur) avec la fiche d'exercices, puis refais ce contrôle."]}
+function showResult(sent){
+ $("bar").classList.add("hide");show("res");const R=S.result,[t,msg]=band(R.total);
+ let h=`<div class="card"><p class="sub">${S.name} · ${Math.floor(R.dur/60)} min ${R.dur%60} s${R.auto?" · temps écoulé":""}</p>
+ <div class="big">${fmt(R.total)} / 20</div><h2>${t}</h2><p>${msg}</p>
+ <p class="sub">${sent?"Résultat envoyé.":SHEET_URL?"Envoi impossible : résultat gardé sur cet appareil, il sera renvoyé à la prochaine ouverture.":"Résultat enregistré sur cet appareil uniquement."}</p></div>
+ <div class="card"><h2>Ce qu'il faut retravailler</h2>`;
+ let any=false;
+ SECS.forEach(s=>{const d=R.det.filter(x=>x.sec===s.id),g=d.reduce((a,x)=>a+x.pts,0),m=d.reduce((a,x)=>a+x.max,0);
+  if(g/m<0.6){any=true;h+=`<div class="tip"><b>${s.t}</b> (${fmt(g)}/${fmt(m)})<br>${TIPS[s.id]}</div>`}});
+ if(!any)h+=`<p class="ok"><b>Toutes les parties sont bien maîtrisées.</b></p>`;
+ h+=`</div><div class="card"><h2>Correction</h2>`;
+ R.det.forEach(x=>{const q=Q.find(z=>z.id===x.id),c=x.pts===x.max?"row-ok":x.pts>0?"row-mid":"row-ko";
+  h+=`<div class="q ${c}"><div class="e">${x.id}. ${q.a==="TXT"?"Explication":fr(q.q)}</div><div>Ta réponse : <b>${x.rep?fr(x.rep.replace(/-(\d+\/\d+)/,"−$1")):"—"}</b>${q.a==="TXT"?"":` · Attendu : <b>${fr(q.a.replace("-","−"))}</b>`}</div><span class="pts">${fmt(x.pts)}/${fmt(x.max)}</span></div>`});
+ h+=`<p class="sub">Un résultat égal mais non simplifié (ex. 4/8 au lieu de 1/2) vaut la moitié des points. L'explication de l'exercice E est notée automatiquement sur des mots-clés : à relire par un adulte.</p></div>
+ <p><button class="sec" id="dl">Télécharger le résultat (JSON)</button> <button class="sec" id="again">Nouvel essai</button></p>`;
+ $("res").innerHTML=h;
+ $("dl").onclick=()=>{const b=new Blob([JSON.stringify({name:S.name,...R},null,1)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="resultat-fractions.json";a.click()};
+ $("again").onclick=()=>{if(confirm("Effacer cet essai et recommencer ?")){localStorage.removeItem(KEY);location.reload()}}}
+function show(id){["home","exam","res"].forEach(x=>$(x).classList.toggle("hide",x!==id))}
+// ====== DÉMARRAGE ======
+$("go").onclick=begin;
+$("done").onclick=()=>{if(confirm("Terminer et envoyer le contrôle ?"))finish(false)};
+if(!SHEET_URL)$("cfgwarn").classList.remove("hide");
+document.addEventListener("visibilitychange",()=>{if(S&&!S.done&&document.hidden){S.blurs++;save(S)}});
+S=load();flush();
+if(S){S.blurs=S.blurs||0;
+ if(S.done&&S.result)showResult(true);
+ else{show("exam");render();startTimer()}}
+</script></body></html>
