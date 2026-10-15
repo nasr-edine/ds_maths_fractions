@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Entraînement – Fractions (3e)</title>
+<style>
+:root{--bg:#eef2f7;--ink:#14213d;--mut:#5b6784;--acc:#0f766e;--accl:#d9f2ef;--bad:#b42318;--badl:#fde8e6;--ok:#157f3b;--okl:#e6f6ec;--line:#cfd7e6;--amb:#fff4d6}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:720px;margin:0 auto;padding:16px}
+h1{font-size:1.6rem;margin:.2em 0}h2{font-size:1.2rem;margin:0 0 .5em}
+.card{background:#fff;border:2px solid var(--line);border-radius:14px;padding:18px;margin:14px 0}
+.hide{display:none}.sub{color:var(--mut);font-size:.95rem}
+button{font:inherit;font-weight:600;background:var(--acc);color:#fff;border:0;border-radius:10px;padding:11px 20px;cursor:pointer}
+button.sec{background:#fff;color:var(--ink);border:2px solid var(--line)}
+button.aid{background:var(--amb);color:#5c4400;border:2px solid #f1d27a;font-size:.95rem;padding:8px 14px}
+button.pulse{animation:p 1.2s 4}@keyframes p{50%{transform:scale(1.07);box-shadow:0 0 0 6px #f1d27a66}}
+@media(prefers-reduced-motion:reduce){button.pulse{animation:none}}
+button:focus-visible,input:focus-visible{outline:3px solid #f59e0b;outline-offset:2px}
+input{font:inherit;font-size:1.3rem;border:2px solid var(--line);border-radius:10px;padding:10px 12px;width:200px}
+#bar{position:sticky;top:0;z-index:5;background:var(--ink);color:#fff;padding:8px 16px}
+#bar div{display:flex;justify-content:space-between;align-items:center}
+#timer{font-size:1.3rem;font-weight:700;font-variant-numeric:tabular-nums}
+#prog{height:6px;background:#ffffff33;border-radius:3px;margin-top:6px}#prog i{display:block;height:100%;background:#5eead4;border-radius:3px}
+.stmt{font-size:1.6rem;margin:14px 0}
+.f{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 3px;line-height:1.15}
+.f i{font-style:normal;padding:0 4px}.f i:first-child{border-bottom:2px solid currentColor}
+.box{border-radius:10px;padding:10px 14px;margin:10px 0}
+.hint{background:var(--amb)}.good{background:var(--okl);color:var(--ok)}.bad{background:var(--badl);color:var(--bad)}.sol{background:var(--accl)}
+.big{font-size:3rem;font-weight:800;line-height:1}
+.lv{display:flex;align-items:center;gap:10px;margin:6px 0}.lv span:first-child{flex:0 0 190px;font-size:.95rem}
+.lv .t{flex:1;height:12px;background:var(--line);border-radius:6px}.lv .t i{display:block;height:100%;border-radius:6px;background:var(--acc)}
+.warn{background:var(--badl);color:var(--bad);border-radius:10px;padding:8px 12px;font-size:.9rem}
+</style></head><body>
+<div id="bar" class="hide"><div><span id="where"></span><span id="timer">45:00</span></div><div id="prog"><i></i></div></div>
+<main>
+<section id="home" class="card">
+  <h1>Entraînement : les fractions</h1>
+  <p class="sub">Dernière révision avant le contrôle · 5 niveaux · environ 40 minutes · sans calculatrice</p>
+  <p>Ici, on apprend en s'entraînant. Les exercices deviennent peu à peu plus difficiles, avec un rappel de cours au début de chaque niveau.</p>
+  <ul>
+    <li><b>Méthode :</b> lis l'énoncé, calcule sur ton <b>brouillon papier</b>, écris seulement le résultat ici, vérifie.</li>
+    <li>Écris les fractions sous la forme <b>3/4</b> ou <b>-1/4</b>, simplifiées au maximum.</li>
+    <li><b>Tu as 2 essais</b> par question. Si tu bloques :
+      <b>💡 Rappel</b> (gratuit), <b>🧭 Premier pas</b> (−20 % des points), <b>👀 Solution</b> (0 point, mais tu apprends).</li>
+    <li>Le temps maximum est de 45 minutes. Une note sur 20 et des conseils t'attendent à la fin.</li>
+  </ul>
+  <p><label>Prénom <input id="name" value="Aya" autocomplete="off" style="width:150px;font-size:1rem"></label></p>
+  <p id="cfgwarn" class="warn hide">Google Sheet non configuré : les résultats restent sur cet appareil (voir SHEET_URL dans le fichier).</p>
+  <p><button id="go">Commencer</button></p>
+</section>
+<section id="step" class="hide"></section>
+<section id="res" class="hide"></section>
+</main>
+<script>
+// ====== CONFIG ======
+const SHEET_URL = "https://script.google.com/macros/s/AKfycbw4J2PjG17zVcKzCGcM6G0ybBiGWlLGbT5-AguOW_YKhwOJpoCMTtMxYG7n-BJvU2zW/exec";            // URL du Web App Apps Script (…/exec)
+const TOKEN = "14121983";      // identique au script Google
+const DURATION = 45*60;
+const NUDGE = 90;                // secondes avant de proposer de l'aide
+const KEY = "entrainement-fractions-v1";
+// ====== CONTENU : [énoncé, réponse, poids, rappel, premier pas, solution] ======
+const L=[
+{t:"Niveau 1 · Simplifier",tip:"Divise le haut ET le bas par le même nombre, jusqu'à ne plus pouvoir (fraction irréductible).",
+ intro:"Simplifier, c'est diviser le haut ET le bas par le même nombre. On continue jusqu'à ne plus pouvoir : la fraction est alors irréductible. Teste 2, 3, 5, puis les nombres plus grands.",qs:[
+ ["6/9","2/3",1,"Cherche un nombre qui divise à la fois 6 et 9.","6 et 9 sont dans la table de 3 : divise le haut et le bas par 3.","6 ÷ 3 = 2 et 9 ÷ 3 = 3, donc 6/9 = 2/3."],
+ ["15/25","3/5",1,"Les nombres qui finissent par 0 ou 5 se divisent par 5.","Divise 15 et 25 par 5.","15 ÷ 5 = 3 et 25 ÷ 5 = 5, donc 15/25 = 3/5."],
+ ["24/36","2/3",1,"Si tu ne vois pas le plus grand diviseur, simplifie en plusieurs fois.","Divise par 2 : tu obtiens 12/18. Continue.","24/36 = 12/18 = 6/9 = 2/3. (On pouvait diviser directement par 12.)"],
+ ["21/28","3/4",1,"21 et 28 sont dans la table de 7.","Divise le haut et le bas par 7.","21 ÷ 7 = 3 et 28 ÷ 7 = 4, donc 21/28 = 3/4."]]},
+{t:"Niveau 2 · Additionner et soustraire",tip:"Même dénominateur : on le garde. Sinon, on cherche d'abord un dénominateur commun, puis on calcule sur les numérateurs.",
+ intro:"Même dénominateur : on le garde et on calcule avec les numérateurs. Dénominateurs différents : on cherche d'abord un dénominateur commun (un multiple des deux), puis on additionne ou soustrait. N'oublie pas de simplifier à la fin.",qs:[
+ ["2/7 + 3/7","5/7",1,"Même dénominateur : on ne touche pas au bas.","Garde 7 en bas. Calcule 2 + 3 en haut.","2 + 3 = 5, donc 2/7 + 3/7 = 5/7."],
+ ["6/9 − 2/9","4/9",1,"Même dénominateur : on ne touche pas au bas.","Garde 9 en bas. Calcule 6 − 2 en haut.","6 − 2 = 4, donc 6/9 − 2/9 = 4/9."],
+ ["1/2 + 1/4","3/4",1,"Les dénominateurs sont différents : 4 est un multiple de 2.","Écris 1/2 avec 4 en bas : 1/2 = 2/4.","1/2 = 2/4, donc 2/4 + 1/4 = 3/4."],
+ ["5/6 − 1/3","1/2",1,"6 est un multiple de 3 : mets tout en sixièmes.","1/3 = 2/6. Calcule 5/6 − 2/6, puis simplifie.","1/3 = 2/6, donc 5/6 − 2/6 = 3/6 = 1/2."],
+ ["2/5 + 1/10","1/2",1.5,"Cherche un multiple commun à 5 et 10.","10 est un multiple de 5 : 2/5 = 4/10.","2/5 = 4/10, donc 4/10 + 1/10 = 5/10 = 1/2."]]},
+{t:"Niveau 3 · Multiplier",tip:"Haut × haut, bas × bas, puis simplifie (idéalement avant de multiplier).",
+ intro:"Multiplier : haut × haut et bas × bas. Pas besoin de dénominateur commun ici ! Astuce : simplifie avant de multiplier (en croix), les nombres restent petits. Vérifie que le résultat est irréductible.",qs:[
+ ["2/3 × 4/5","8/15",1,"Haut × haut et bas × bas.","2 × 4 en haut, 3 × 5 en bas.","2 × 4 = 8 et 3 × 5 = 15, donc 8/15 (déjà irréductible)."],
+ ["5/6 × 3/10","1/4",1.5,"Tu peux simplifier en croix : 5 avec 10, 3 avec 6.","5/10 = 1/2 et 3/6 = 1/2. Il reste 1/2 × 1/2.","5/6 × 3/10 = 15/60 = 1/4."],
+ ["4/9 × 3/8","1/6",1.5,"Simplifie avant : 4 avec 8, 3 avec 9.","4 et 8 se divisent par 4 ; 3 et 9 par 3. Il reste 1/3 × 1/2.","4/9 × 3/8 = 12/72 = 1/6."]]},
+{t:"Niveau 4 · Les signes",tip:"Règle des signes : (+)(+)=+, (−)(−)=+, (+)(−)=−. En addition, fais attention au signe du résultat.",
+ intro:"Attention aux signes ! Pour multiplier : + × + = +, − × − = +, + × − = −. Pour additionner : le résultat prend le signe du nombre le plus « grand » (sans son signe). Une droite graduée sur ton brouillon aide beaucoup.",qs:[
+ ["−2/7 + 5/7","3/7",1,"Même dénominateur : calcule −2 + 5 en haut.","Pars de −2 et avance de 5 sur une droite graduée.","−2 + 5 = 3, donc −2/7 + 5/7 = 3/7."],
+ ["−1/2 + 1/4","-1/4",1.5,"Passe en quarts : 1/2 = 2/4.","Tu as −2/4 + 1/4. Calcule −2 + 1.","−1/2 = −2/4, donc −2/4 + 1/4 = −1/4."],
+ ["−3/5 × (−5/6)","1/2",1.5,"Deux signes − qui se multiplient donnent un signe +.","Calcule 3/5 × 5/6 sans les signes, puis mets le signe +.","(−) × (−) = +. 3/5 × 5/6 = 15/30 = 1/2."]]},
+{t:"Niveau 5 · Comme au contrôle",tip:"Lis l'énoncé deux fois, traduis-le en calcul, puis applique les méthodes des niveaux précédents.",
+ intro:"Dernier niveau : des questions comme au contrôle, avec un piège classique et un problème. Lis chaque énoncé deux fois, écris le calcul sur ton brouillon, puis vérifie le signe et la simplification.",qs:[
+ ["−1/3 + 5/6","1/2",1.5,"Mets tout en sixièmes.","−1/3 = −2/6. Calcule −2 + 5 en haut.","−2/6 + 5/6 = 3/6 = 1/2."],
+ ["1/2 + 1/3","5/6",1.5,"Piège : on n'additionne JAMAIS les dénominateurs (1/2 + 1/3 n'est pas 2/5).","Dénominateur commun : 6. Écris 1/2 et 1/3 en sixièmes.","1/2 = 3/6 et 1/3 = 2/6, donc 3/6 + 2/6 = 5/6."],
+ ["Léa a lu 1/3 d'un livre le lundi et 1/4 le mardi. Quelle fraction du livre lui reste-t-il à lire ?","5/12",2,"Calcule d'abord ce qu'elle a lu en tout, puis enlève-le à 1 (le livre entier).","1/3 + 1/4 = 4/12 + 3/12. Le livre entier vaut 12/12.","Lu : 7/12. Reste : 12/12 − 7/12 = 5/12."]]}];
+const steps=[];let W=0;
+L.forEach((l,li)=>{steps.push({k:"i",li});l.qs.forEach((q,qi)=>{W+=q[2];steps.push({k:"q",li,id:`N${li+1}.${qi+1}`,q:q[0],a:q[1],w:q[2],r:q[3],s:q[4],sol:q[5]})})});
+const SC=20/W,NQ=steps.filter(s=>s.k==="q").length;
+// ====== OUTILS ======
+const $=id=>document.getElementById(id);
+const fr=s=>s.replace(/(−?)(\d+)\/(\d+)/g,(m,m1,a,b)=>(m1?"−":"")+`<span class="f"><i>${a}</i><i>${b}</i></span>`);
+const gcd=(a,b)=>b?gcd(b,a%b):Math.abs(a);
+const parse=s=>{s=(s||"").replace(/[−–]/g,"-").replace(/\s/g,"");let m=s.match(/^(-?\d+)\/(-?\d+)$/);
+ if(m&&+m[2]!==0)return[+m[1],+m[2]];m=s.match(/^(-?\d+)$/);return m?[+m[1],1]:null};
+const fmt=n=>(Math.round(n*10)/10).toString().replace(".",",");
+const load=()=>{try{return JSON.parse(localStorage.getItem(KEY))}catch(e){return null}};
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
+let S=null,tick=null,nudge=null,t0=0;
+async function send(p){p.token=TOKEN;if(!SHEET_URL)return false;
+ try{await fetch(SHEET_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"text/plain"},body:JSON.stringify(p)});return true}
+ catch(e){const q=JSON.parse(localStorage.getItem(KEY+"-q")||"[]");q.push(p);localStorage.setItem(KEY+"-q",JSON.stringify(q));return false}}
+async function flush(){const q=JSON.parse(localStorage.getItem(KEY+"-q")||"[]");if(!q.length||!SHEET_URL)return;
+ localStorage.removeItem(KEY+"-q");for(const p of q)await send(p)}
+const lg=id=>S.lg[id]||(S.lg[id]={tries:0,h:0,sol:false,t:0,pts:null,rep:[]});
+// ====== FLUX ======
+function startTimer(){$("bar").classList.remove("hide");
+ const u=()=>{const left=Math.max(0,DURATION-Math.floor((Date.now()-S.start)/1000));
+  $("timer").textContent=String(Math.floor(left/60)).padStart(2,"0")+":"+String(left%60).padStart(2,"0");
+  if(left<=0){clearInterval(tick);finish(true)}};u();tick=setInterval(u,500)}
+function begin(){S={name:$("name").value.trim()||"Aya",start:Date.now(),i:0,lg:{},blurs:0,done:false};save();
+ send({type:"start",name:S.name,at:new Date().toISOString(),app:"entrainement"});startTimer();draw()}
+function draw(){
+ clearTimeout(nudge);const st=steps[S.i];$("home").classList.add("hide");$("step").classList.remove("hide");
+ $("prog").firstChild.style.width=(S.i/steps.length*100)+"%";
+ const el=$("step");
+ if(st.k==="i"){$("where").textContent=L[st.li].t;
+  el.innerHTML=`<div class="card"><h2>${L[st.li].t}</h2><div class="box sol"><b>À retenir</b><br>${fr(L[st.li].intro)}</div><p><button id="nx">J'ai compris, c'est parti</button></p></div>`;
+  $("nx").onclick=next;return}
+ const g=lg(st.id),n=steps.slice(0,S.i+1).filter(x=>x.k==="q").length;
+ $("where").textContent=`${L[st.li].t.split(" ·")[0]} · question ${n}/${NQ}`;
+ el.innerHTML=`<div class="card"><div class="stmt">${fr(st.q)}${/^[−\d(]/.test(st.q)&&!/[a-zé]/.test(st.q)?" = ?":""}</div>
+ <p><input id="ans" autocomplete="off" inputmode="text" placeholder="ex : 3/4" aria-label="Ta réponse"> <button id="ok">Vérifier</button></p>
+ <p><button class="aid" id="h1">💡 Rappel</button> <button class="aid" id="h2">🧭 Premier pas (−20 %)</button> <button class="aid" id="h3">👀 Solution (0 pt)</button></p>
+ <div id="msg"></div><p><button id="nx" class="hide">Question suivante</button></p></div>`;
+ const ans=$("ans");ans.focus();ans.onkeydown=e=>{if(e.key==="Enter")check()};
+ $("ok").onclick=check;$("nx").onclick=next;
+ $("h1").onclick=()=>aid(1);$("h2").onclick=()=>aid(2);$("h3").onclick=()=>{if(confirm("Voir la solution te fait perdre les points de cette question. Continuer ?"))aid(3)};
+ t0=Date.now();
+ if(g.pts!==null){showAids(g);end(g)}
+ else nudge=setTimeout(()=>{$("h1").classList.add("pulse");msg("hint","Ça fait un moment que tu réfléchis : un petit rappel peut aider 💡")},NUDGE*1000)}
+function msg(c,h){$("msg").insertAdjacentHTML("beforeend",`<div class="box ${c}">${h}</div>`)}
+function showAids(g){const st=steps[S.i];$("msg").innerHTML="";
+ if(g.h>=1)msg("hint","💡 "+fr(st.r));if(g.h>=2)msg("hint","🧭 "+fr(st.s))}
+function aid(n){const st=steps[S.i],g=lg(st.id);if(g.pts!==null)return;
+ if(n===3){g.sol=true;g.h=3;g.pts=0;end(g,false);return}
+ g.h=Math.max(g.h,n);save();showAids(g)}
+function check(){const st=steps[S.i],g=lg(st.id);if(g.pts!==null)return;
+ const v=$("ans").value,x=parse(v),y=parse(st.a);
+ if(!x){msg("bad","Écris ta réponse sous la forme 3/4 (ou -3/4).");return}
+ if(x[0]*y[1]!==x[1]*y[0]){g.tries++;g.rep.push(v);
+  if(g.tries>=2){g.pts=0;end(g,false)}
+  else{msg("bad","Pas tout à fait. Reprends ton brouillon étape par étape. Il te reste 1 essai (tu peux aussi demander une aide).");save()}return}
+ if(!(gcd(x[0],x[1])===1&&x[1]>0)){msg("hint","Ta fraction est juste, mais elle n'est pas encore irréductible : simplifie-la encore !");return}
+ g.tries++;g.rep.push(v);g.pts=st.w*SC*(g.tries===1?1:.6)*(g.h>=2?.8:1);end(g,true)}
+function end(g,ok){const st=steps[S.i];clearTimeout(nudge);
+ if(ok===undefined)ok=g.pts>0;
+ if(!g.logged){g.t+=Math.round((Date.now()-t0)/1000);g.logged=true;
+  send({type:"q",name:S.name,at:new Date().toISOString(),id:st.id,rep:g.rep.join(" | "),ok,tries:g.tries,h:g.h,sol:g.sol,t:g.t,pts:Math.round(g.pts*100)/100})}
+ save();showAids(g);
+ if(ok)msg("good",`Bravo ! ${g.tries===1&&g.h===0?"Réussi sans aide. 🎯":"C'est juste. Tu progresses."} (${fmt(g.pts)} pt)`);
+ else msg("sol",`<b>Solution :</b> ${fr(st.sol)}<br>Refais-la sur ton brouillon pour bien la retenir.`);
+ $("ans").disabled=true;["ok","h1","h2","h3"].forEach(i=>$(i).disabled=true);$("nx").classList.remove("hide");$("nx").focus()}
+function next(){S.i++;save();if(S.i>=steps.length)finish(false);else draw()}
+// ====== FIN ======
+async function finish(auto){if(S.done&&S.result)return showRes(true);
+ S.done=true;clearInterval(tick);clearTimeout(nudge);
+ const det=steps.filter(s=>s.k==="q").map(s=>{const g=lg(s.id);return{id:s.id,lvl:s.li,rep:g.rep.join(" | "),att:s.a,max:s.w*SC,pts:g.pts||0,tries:g.tries,h:g.h,sol:g.sol,t:g.t}});
+ const total=det.reduce((a,d)=>a+d.pts,0),dur=Math.min(DURATION,Math.round((Date.now()-S.start)/1000));
+ S.result={det,total,dur,auto:!!auto};save();
+ const sent=await send({type:"train",name:S.name,at:new Date().toISOString(),total,dur,auto:!!auto,blurs:S.blurs,aides:det.filter(d=>d.h>0).length,det});
+ showRes(sent)}
+function band(n){
+ if(n>=16)return["Excellent !","Tu es prêt(e) pour demain. Relis simplement les règles une dernière fois et dors bien."];
+ if(n>=12)return["Très bon travail","Tu es au-dessus de la moyenne. Regarde les points à retravailler ci-dessous : 10 minutes suffisent."];
+ if(n>=8)return["Tu es sur la bonne voie","Tu as les bases. Refais sur ton brouillon les questions où tu as eu besoin d'aide, tu vas vite gagner des points."];
+ return["Tu as déjà fait le plus dur : t'y mettre","Reprends les rappels de cours des niveaux 1 et 2 : ce sont les plus rentables pour demain. Chaque exercice refait compte."]}
+function showRes(sent){$("bar").classList.add("hide");$("step").classList.add("hide");$("res").classList.remove("hide");
+ const R=S.result,[t,m]=band(R.total),na=R.det.filter(d=>d.h>0).length,nb=R.det.filter(d=>d.tries>0&&d.pts>0&&d.tries===1&&d.h===0).length;
+ let h=`<div class="card"><p class="sub">${S.name} · ${Math.floor(R.dur/60)} min ${R.dur%60} s${R.auto?" · temps écoulé":""}</p>
+ <div class="big">${fmt(R.total)} / 20</div><h2>${t}</h2><p>${m}</p>
+ <p>Réussies du premier coup et sans aide : <b>${nb}/${NQ}</b> · questions avec aide : <b>${na}</b></p>
+ <p class="sub">${sent?"Résultat envoyé.":SHEET_URL?"Envoi impossible : il sera renvoyé à la prochaine ouverture.":"Résultat enregistré sur cet appareil uniquement."}</p></div>
+ <div class="card"><h2>Ton niveau par partie</h2>`;
+ let tips="";
+ L.forEach((l,li)=>{const d=R.det.filter(x=>x.lvl===li),g=d.reduce((a,x)=>a+x.pts,0),mx=d.reduce((a,x)=>a+x.max,0),p=Math.round(g/mx*100);
+  h+=`<div class="lv"><span>${l.t}</span><span class="t"><i style="width:${p}%"></i></span><span>${p}%</span></div>`;
+  if(p<60)tips+=`<div class="box hint"><b>${l.t}</b><br>${fr(l.tip)}</div>`});
+ h+=`</div><div class="card"><h2>À retravailler avant demain</h2>${tips||'<p class="ok" style="color:var(--ok)"><b>Toutes les parties sont solides.</b></p>'}</div>
+ <div class="card"><h2>Le jour du contrôle</h2><ul><li>Lis chaque énoncé deux fois.</li><li>Écris toutes les étapes : elles rapportent des points.</li><li>Commence par ce que tu sais faire, reviens ensuite aux questions difficiles.</li><li>Avant de rendre : vérifie les signes et que chaque fraction est irréductible.</li></ul></div>
+ <p><button class="sec" id="dl">Télécharger le résultat (JSON)</button> <button class="sec" id="again">Nouvel essai</button></p>`;
+ $("res").innerHTML=h;
+ $("dl").onclick=()=>{const b=new Blob([JSON.stringify({name:S.name,...R},null,1)],{type:"application/json"}),a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="entrainement-fractions.json";a.click()};
+ $("again").onclick=()=>{if(confirm("Effacer cet essai et recommencer ?")){localStorage.removeItem(KEY);location.reload()}}}
+// ====== DÉMARRAGE ======
+$("go").onclick=begin;
+if(!SHEET_URL)$("cfgwarn").classList.remove("hide");
+document.addEventListener("visibilitychange",()=>{if(S&&!S.done&&document.hidden){S.blurs++;save()}});
+S=load();flush();
+if(S){S.blurs=S.blurs||0;
+ if(S.done&&S.result)showRes(true);
+ else if(S.done)finish(true);
+ else{startTimer();draw()}}
+</script></body></html>
